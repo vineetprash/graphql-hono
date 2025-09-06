@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>LeetCode Profile Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+  <style>
+    body {
+      background: linear-gradient(135deg, #18181b 0%, #23272f 100%);
+    }
+    .glass {
+      background: rgba(36, 37, 46, 0.7);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+  </style>
+</head>
+<body class="gradient-bg min-h-screen">
+  <div class="container mx-auto px-4 py-8">
+    <div class="text-center mb-12">
+      <h1 class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-pink-500 mb-4 drop-shadow-lg">LeetCode Tracker</h1>
+      <p class="text-xl text-gray-300">Track your coding journey with real data 🚀</p>
+    </div>
+
+    <!-- Search -->
+    <div class="max-w-md mx-auto flex gap-3 mb-8 glass rounded-2xl p-4 shadow-lg">
+      <input id="usernameInput" class="flex-1 px-4 py-2 rounded-xl bg-transparent text-gray-100 border-2 border-gray-700 focus:border-yellow-400 placeholder-gray-400 focus:outline-none transition-all duration-200 shadow-sm" placeholder="Enter LeetCode username" />
+      <button id="searchBtn" class="px-6 py-2 bg-gradient-to-r from-yellow-400 via-orange-500 to-pink-500 text-gray-900 font-bold rounded-xl shadow-md hover:from-yellow-300 hover:to-pink-400 transition-all">Search</button>
+    </div>
+
+    <!-- Error -->
+    <div id="errorSection" class="hidden text-center mb-4">
+      <p id="errorMessage" class="bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-2 rounded shadow"></p>
+    </div>
+
+    <!-- Profile -->
+    <div id="profileSection" class="hidden glass text-gray-100 rounded-2xl p-6 mb-6 shadow-lg"></div>
+
+    <!-- Chart -->
+    <div id="chartSection" class="hidden glass text-gray-100 rounded-2xl p-6 mb-6 shadow-lg">
+      <canvas id="submissionChart" class="w-full h-80"></canvas>
+    </div>
+
+    <!-- Heatmap -->
+    <div id="heatmapSection" class="hidden glass text-gray-100 rounded-2xl p-6 shadow-lg">
+      <h3 class="text-lg font-semibold mb-3 text-yellow-300">Submission Heatmap (Last Year)</h3>
+      <div id="heatmapContainer" class="grid grid-flow-col gap-1 overflow-x-auto"></div>
+    </div>
+  </div>
+
+  <script>
+  const graphqlEndpoint = "http://localhost:3001/leetcode-proxy";
+    let chart = null;
+
+    async function fetchProfile(username) {
+      const query = `
+        query userProfile($username: String!) {
+          matchedUser(username: $username) {
+            username
+            submitStatsGlobal {
+              acSubmissionNum {
+                difficulty
+                count
+              }
+            }
+          }
+        }
+      `;
+      const headers = { "Content-Type": "application/json" };
+      const body = {
+        query,
+        variables: { username },
+        operationName: "userProfile"
+      };
+      const response = await fetch(graphqlEndpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ body, headers }),
+      });
+      const data = await response.json();
+      if (!data.data?.matchedUser) throw new Error("User not found");
+      return data.data.matchedUser;
+    }
+
+    async function fetchCalendar(username) {
+      const query = `\n query userProfileCalendar($username: String!, $year: Int) {\n matchedUser(username: $username) {\n userCalendar(year: $year) {\n activeYears\n streak\n totalActiveDays\n dccBadges {\n timestamp\n badge {\n name\n icon\n }\n }\n submissionCalendar\n }\n }\n}\n `;
+      const headers = {
+        "accept": "*/*",
+        "accept-language": "en-US,en;q=0.9,mr;q=0.8,en-IN;q=0.7",
+        "authorization": "",
+        "baggage": "sentry-environment=production,sentry-release=efbc27a9,sentry-transaction=%2Fu%2F%5Busername%5D,sentry-public_key=2a051f9838e2450fbdd5a77eb62cc83c,sentry-trace_id=509226ed07764b43bb515d172a51d541,sentry-sample_rate=0.03",
+        "cache-control": "no-cache",
+        "content-type": "application/json",
+        "pragma": "no-cache",
+        "priority": "u=1, i",
+        "random-uuid": "f2afd4a9-940b-ad20-a513-aca36c578859",
+        "sec-ch-ua": '"Not;A=Brand";v="99", "Microsoft Edge";v="139", "Chromium";v="139"',
+        "sec-ch-ua-arch": '"x86"',
+        "sec-ch-ua-bitness": '"64"',
+        "sec-ch-ua-full-version": '"139.0.3405.125"',
+        "sec-ch-ua-full-version-list": '"Not;A=Brand";v="99.0.0.0", "Microsoft Edge";v="139.0.3405.125", "Chromium";v="139.0.7258.155"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-model": '""',
+        "sec-ch-ua-platform": '"Windows"',
+        "sec-ch-ua-platform-version": '"15.0.0"',
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-origin",
+        "sentry-trace": "509226ed07764b43bb515d172a51d541-a18713d307ff750b-0",
+        "uuuserid": "d67923cbccba27a6adbc8709cc88f38f",
+        "x-csrftoken": "P7sZgYtgH24GVila8qI3gAJmv0ikSTvjrZHBuE5tgtSrgP0ZEA6nzTiKR0hJnN83"
+      };
+      const body = {
+        query,
+        variables: { username },
+        operationName: "userProfileCalendar"
+      };
+      const response = await fetch("http://localhost:3001/leetcode-proxy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body, headers }),
+      });
+      const data = await response.json();
+      // Defensive: check for new structure
+      const calendarStr = data?.data?.matchedUser?.userCalendar?.submissionCalendar;
+      return calendarStr ? JSON.parse(calendarStr) : {};
+    }
+
+    function displayProfile(user) {
+      const stats = user.submitStatsGlobal.acSubmissionNum;
+      const total = stats.find(s => s.difficulty === "All").count;
+      const easy = stats.find(s => s.difficulty === "Easy").count;
+      const medium = stats.find(s => s.difficulty === "Medium").count;
+      const hard = stats.find(s => s.difficulty === "Hard").count;
+
+      document.getElementById("profileSection").innerHTML = `
+        <div class="flex items-center gap-4 mb-4">
+          <div class="w-16 h-16 rounded-full bg-gradient-to-br from-yellow-400 via-orange-500 to-pink-500 flex items-center justify-center text-2xl font-extrabold text-gray-900 shadow-lg">${user.username.charAt(0).toUpperCase()}</div>
+          <div>
+            <h2 class="text-2xl font-bold text-yellow-300 mb-1">${user.username}</h2>
+            <p class="text-gray-400">LeetCode Profile</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="text-center p-4 bg-gradient-to-br from-green-900/60 to-green-700/40 rounded-xl">
+            <div class="text-2xl font-bold text-green-300 mb-1">${total}</div>
+            <div class="text-sm text-gray-300 uppercase tracking-wide">Total Solved</div>
+          </div>
+          <div class="text-center p-4 bg-gradient-to-br from-blue-900/60 to-blue-700/40 rounded-xl">
+            <div class="text-2xl font-bold text-blue-300 mb-1">${easy}</div>
+            <div class="text-sm text-gray-300 uppercase tracking-wide">Easy</div>
+          </div>
+          <div class="text-center p-4 bg-gradient-to-br from-yellow-900/60 to-yellow-700/40 rounded-xl">
+            <div class="text-2xl font-bold text-yellow-200 mb-1">${medium}</div>
+            <div class="text-sm text-gray-300 uppercase tracking-wide">Medium</div>
+          </div>
+          <div class="text-center p-4 bg-gradient-to-br from-pink-900/60 to-pink-700/40 rounded-xl">
+            <div class="text-2xl font-bold text-pink-200 mb-1">${hard}</div>
+            <div class="text-sm text-gray-300 uppercase tracking-wide">Hard</div>
+          </div>
+        </div>
+      `;
+      document.getElementById("profileSection").classList.remove("hidden");
+    }
+
+    function displayChart(calendar) {
+      const dates = Object.keys(calendar).sort();
+      const values = dates.map(d => calendar[d]);
+
+      if (chart) chart.destroy();
+      const ctx = document.getElementById("submissionChart").getContext("2d");
+      chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: dates.map(d => new Date(d * 1000).toLocaleDateString()),
+          datasets: [{
+            label: "Submissions",
+            data: values,
+            borderColor: "#fbbf24",
+            backgroundColor: "rgba(251,191,36,0.12)",
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: "#fbbf24",
+            pointBorderColor: "#fff",
+            pointBorderWidth: 2,
+            pointRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: { color: "rgba(255,255,255,0.08)" },
+              ticks: { color: "#fbbf24" }
+            },
+            x: {
+              grid: { color: "rgba(255,255,255,0.04)" },
+              ticks: { color: "#fbbf24" }
+            }
+          }
+        }
+      });
+      document.getElementById("chartSection").classList.remove("hidden");
+    }
+
+    function displayHeatmap(calendar) {
+      const container = document.getElementById("heatmapContainer");
+      container.innerHTML = "";
+
+      const dates = Object.keys(calendar).sort();
+      const firstDate = new Date(dates[0] * 1000);
+      const weeks = [];
+
+      // Build weeks array
+      let week = new Array(firstDate.getDay()).fill(null);
+      for (let ts of dates) {
+        const d = new Date(ts * 1000);
+        if (week.length === 7) {
+          weeks.push(week);
+          week = [];
+        }
+        week.push(calendar[ts]);
+      }
+      weeks.push(week);
+
+      weeks.forEach(w => {
+        const col = document.createElement("div");
+        col.className = "flex flex-col gap-1";
+        w.forEach(val => {
+          const level = val ? Math.min(4, Math.floor(val / 2)) : 0;
+          const colors = [
+            "bg-gray-700 border border-gray-800",
+            "bg-green-400/60 border border-green-400/40",
+            "bg-yellow-300/70 border border-yellow-200/40",
+            "bg-orange-400/80 border border-orange-300/40",
+            "bg-pink-400/90 border border-pink-300/40"
+          ];
+          const cell = document.createElement("div");
+          cell.className = `w-3 h-3 rounded-sm ${colors[level]} transition-all duration-150`;
+          col.appendChild(cell);
+        });
+        container.appendChild(col);
+      });
+
+      document.getElementById("heatmapSection").classList.remove("hidden");
+    }
+
+    document.getElementById("searchBtn").addEventListener("click", async () => {
+      const username = document.getElementById("usernameInput").value.trim();
+      if (!username) return;
+
+      try {
+        document.getElementById("errorSection").classList.add("hidden");
+        const profile = await fetchProfile(username);
+        const calendar = await fetchCalendar(username);
+
+        displayProfile(profile);
+        displayChart(calendar);
+        displayHeatmap(calendar);
+
+      } catch (err) {
+        document.getElementById("errorMessage").textContent = err.message;
+        document.getElementById("errorSection").classList.remove("hidden");
+      }
+    });
+  </script>
+</body>
+</html>
+

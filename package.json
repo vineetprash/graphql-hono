@@ -1,0 +1,23 @@
+{
+  "name": "lc-tracker",
+  "version": "1.0.0",
+  "main": "leetcode-proxy.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@hono/node-server": "^1.19.1",
+    "cors": "^2.8.5",
+    "express-rate-limit": "^8.1.0",
+    "express-slow-down": "^3.0.0",
+    "helmet": "^8.1.0",
+    "hono": "^4.9.6",
+    "nodemon": "^3.1.10",
+    "wrangler": "^4.34.0"
+  }
+}
