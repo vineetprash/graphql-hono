@@ -15,7 +15,7 @@ app.use('*', secureHeaders())
 
 // CORS for localhost and production
 app.use('*', cors({
-  origin: ['http://localhost:3000', 'http://localhost:3001', 'https://*.workers.dev'],
+  origin: ['http://localhost:3000', 'http://localhost:3001', 'https://*.workers.dev', 'https://vineetprash.github.io'],
   allowMethods: ['GET', 'POST'],
 }))
 
